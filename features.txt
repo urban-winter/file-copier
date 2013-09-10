@@ -1,0 +1,19 @@
+
+File copier
+1. Read CSV file in current format - done
+2. Extract the directories to watch - done
+3. Set up file watcher from these dirs - done
+4. Run in loop, copy files from source to dest - done
+5. Use proper logging - done
+
+- callback when file has been copied - done
+- implement substitution of wildcards - done
+- special substitution for history location - partly done, need to wire it in - trivial 
+but ugly answer is to hard-code the fact that the history location is always the 2nd one in the destination list - done
+- understand/implement date directories for history location - done
+- test with huge file - file arrival before it has fully arrived - done
+- multiple threads - done
+- add negative test for callback
+- restructure source
+- implement as service
+- deployment
