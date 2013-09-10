@@ -82,24 +82,6 @@ class TestDirectoryWatcher(unittest.TestCase):
         watcher.look()
         self.assertEqual({filename}, self.files_seen)
         
-    def test_no_notification_sent_if_file_is_not_yet_complete(self):
-        self.test_dirs = [tempfile.mkdtemp()]
-        filename = tempfile.mkstemp(dir=self.test_dirs[0])[1]
-        f = open(os.path.join(self.test_dirs[0],filename), 'a')
-        print '%s is now open' % (filename)
-        f.write('sausage')
-
-        watcher = DirectoryWatcher({self.test_dirs[0]}, self.filename_callback)
-        watcher.look()
-        f.close()
-
-        self.assertEqual({}, self.files_seen)
-
-    
-    def test_notification_sent_when_incomplete_file_becomes_complete(self):
-        self.fail('Not implemented yet')
-
-
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
