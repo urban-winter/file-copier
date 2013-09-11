@@ -9,7 +9,7 @@ import fnmatch
 import os
 import time
 from datetime import date, timedelta
-from multiprocessing import Pool
+import multiprocessing
 
 
 _logger = logging.getLogger(__name__)
@@ -147,6 +147,17 @@ class Destination(object):
             os.mkdir(dated_path)
         return os.path.join(dirname,dated_subdir,fname)
 
+def copy_file_task(src,dst,queue):
+    try:
+        shutil.copyfile(src, dst)
+        queue.put(['success',src,dst])
+    except:
+        queue.put(['failure'])
+    finally:
+        time.sleep(0.01)
+
+            
+
 
 class FileCopier(object):
     '''
@@ -161,13 +172,17 @@ class FileCopier(object):
         '''
         self.file_copy_spec = file_copy_spec
         self.file_copied_callback = file_copied_callback
-        self.pool = Pool(processes=COPY_POOL_SIZE)
+        self.pool = multiprocessing.Pool(processes=COPY_POOL_SIZE)
+        mgr = multiprocessing.Manager()
+        self.queue = mgr.Queue()        
                 
     def _copy_file(self,src,dst):
         _logger.info('Copying from %s to %s',src,dst)
 #        shutil.copyfile(src,dst)           
-        self.pool.apply_async(shutil.copyfile, (src,dst))    
-        
+#        self.pool.apply_async(shutil.copyfile, (src,dst))
+        self.pool.apply_async(copy_file_task, (src, dst, self.queue))
+#        self._copy_file_task(src, dst)  
+  
     def _wildcard_match(self,spec,target):
         '''
         Does the target match the spec?
@@ -209,10 +224,11 @@ class FileCopier(object):
             if (self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path) and
                 self.file_copied_callback is not None):
                 self.file_copied_callback(dest_path)
-#        self.pool.close()
-#        self.pool.join()
         
     def close(self):
+        '''
+        Wait for any in-progress work to complete. This is needed for unit tests.
+        '''
         _logger.debug('FileCopier.close()')
         self.pool.close()
         self.pool.join()

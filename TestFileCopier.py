@@ -108,6 +108,28 @@ class TestCopy(unittest.TestCase):
         copier.copy(src_path)
         
         self.assertEqual(self.mock_callback_called_with_path, os.path.join(self.dest_dir,self.TEST_FILE_NAME))
+
+    def test_file_copy_complete_callback_not_called_if_file_not_copied(self):
+        src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
+        spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
+        self._make_aged_empty_file(src_path,FileCopier.MAX_AGE_TO_COPY+1) # too old to copy
+        
+        copier = FileCopier.FileCopier(spec,self._mock_callback)
+        copier.copy(src_path)
+        
+        self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
+
+    @patch('shutil.copyfile')
+    def test_file_copy_complete_callback_not_called_if_exception_raised(self,*args):
+        shutil.copyfile.side_effect = Exception('anything')
+        src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
+        spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
+        self._make_empty_file(src_path)
+        
+        copier = FileCopier.FileCopier(spec,self._mock_callback)
+        copier.copy(src_path)
+        
+        self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
         
     def test_that_history_processing_applies_only_to_second_destination(self):
         src_path1 = os.path.join(self.source_dir,'*.txt')
