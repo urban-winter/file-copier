@@ -106,6 +106,8 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
         copier.copy(src_path)
+        time.sleep(1)
+        copier.check_copy_status()
         
         self.assertEqual(self.mock_callback_called_with_path, os.path.join(self.dest_dir,self.TEST_FILE_NAME))
 
@@ -128,6 +130,8 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
         copier.copy(src_path)
+        time.sleep(1)
+        copier.check_copy_status()
         
         self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
         

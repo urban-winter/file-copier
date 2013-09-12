@@ -197,16 +197,12 @@ class FileCopier(object):
         return None, None
     
     def _process_one_destination(self,dest_path,source_path,source_spec,dest_is_history_path):
-        have_copied_file = False
         if dest_path is not None:
             _logger.debug('Processing destination path: %s', dest_path)
             destination = Destination(source_spec,source_path,dest_path,dest_is_history_path)
-#            print 'destination.file_should_be_copied()', destination.file_should_be_copied()
             if destination.file_should_be_copied():
                 _logger.debug('Copying %s to %s',source_path,destination.path)
                 self._copy_file(source_path,destination.path)
-                have_copied_file = True
-        return have_copied_file
         
     def copy(self,source_path):
         '''
@@ -221,9 +217,18 @@ class FileCopier(object):
         _logger.debug('Spec found for %s',source_path)
         for idx, dest_path in enumerate(copy_spec):
             dest_is_history_path = idx == 1
-            if (self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path) and
-                self.file_copied_callback is not None):
-                self.file_copied_callback(dest_path)
+            self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path)
+#            if (self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path) and
+#                self.file_copied_callback is not None):
+#                self.file_copied_callback(dest_path)
+                
+    def check_copy_status(self):
+        while not self.queue.empty():
+            result = self.queue.get()
+            print 'Result retrieved: ', result
+            if result[0] == 'success' and self.file_copied_callback is not None:
+                dst = result[2]
+                self.file_copied_callback(dst)
         
     def close(self):
         '''
