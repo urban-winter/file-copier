@@ -151,8 +151,8 @@ def copy_file_task(src,dst,queue):
     try:
         shutil.copyfile(src, dst)
         queue.put(['success',src,dst])
-    except:
-        queue.put(['failure'])
+    except Exception as e:
+        queue.put(['failure',e])
     finally:
         time.sleep(0.01)
 

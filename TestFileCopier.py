@@ -13,6 +13,7 @@ from datetime import date, timedelta
 
 from mock import patch, call
 import time
+import stat
 
 class TestCopy(unittest.TestCase):
     
@@ -130,9 +131,24 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
         copier.copy(src_path)
-        time.sleep(1)
+        time.sleep(0.1)
         copier.check_copy_status()
         
+        self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
+        
+    def test_file_copy_complete_callback_not_called_if_destination_is_read_only(self):
+        src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
+        spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
+        os.chmod(self.dest_dir,stat.S_IREAD)
+        self._make_empty_file(src_path)
+        
+        copier = FileCopier.FileCopier(spec,self._mock_callback)
+        copier.copy(src_path)
+        time.sleep(0.1)
+        copier.check_copy_status()
+        copier.close()
+        
+        self.assertEqual(len(os.listdir(self.dest_dir)), 0)
         self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
         
     def test_that_history_processing_applies_only_to_second_destination(self):
