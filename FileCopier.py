@@ -219,9 +219,6 @@ class FileCopier(object):
         for idx, dest_path in enumerate(copy_spec):
             dest_is_history_path = idx == 1
             self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path)
-#            if (self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path) and
-#                self.file_copied_callback is not None):
-#                self.file_copied_callback(dest_path)
                 
     def check_copy_status(self):
         while not self.queue.empty():
