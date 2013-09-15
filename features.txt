@@ -14,7 +14,7 @@ but ugly answer is to hard-code the fact that the history location is always the
 - test with huge file - file arrival before it has fully arrived - done
 - multiple threads - done
 - add negative test for callback - done
-- test for file copy raising exception - in progress - mock problem with multiprocessing
+- test for file copy raising exception - done
 - restructure source
 - implement as service
 - deployment
