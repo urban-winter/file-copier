@@ -14,10 +14,11 @@ import multiprocessing
 
 _logger = logging.getLogger(__name__)
 
-HOURS = 60 * 60
+SECONDS = 1
+HOURS = 60 * 60 * SECONDS
 
 MAX_AGE_TO_COPY = 12 * HOURS
-MIN_AGE_TO_COPY = 60
+MIN_AGE_TO_COPY = 60 * SECONDS
 HISTORY_FILE_AGE_THRESHOLD = 12 * HOURS
 
 COPY_POOL_SIZE = 10
