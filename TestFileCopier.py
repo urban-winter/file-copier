@@ -188,14 +188,12 @@ class TestCopy(unittest.TestCase):
         self.assertEqual(os.listdir(self.dest_dir), [hist_dir])
         self.assertEqual(os.listdir(os.path.join(self.dest_dir,hist_dir)),[expected_history_filename])
         
-
     def _create_history_dir_for_yesterday(self):
         yesterday = date.today() - timedelta(1)
         hist_dir_for_yesterday = yesterday.strftime('%Y%m%d')
         hist_path_for_yesterday = os.path.join(self.dest_dir, hist_dir_for_yesterday)
         os.mkdir(hist_path_for_yesterday)
         return hist_path_for_yesterday, hist_dir_for_yesterday
-
 
     def _copy_to_history(self):
         src_path = os.path.join(self.source_dir, '*.txt')
@@ -276,28 +274,31 @@ class TestCopy(unittest.TestCase):
         self.assertFalse(FileCopier.CopyRules('a_file.txt', 'dummy').file_should_be_copied())
         os.path.getmtime.assert_has_calls([call('a_file.txt'),call('a_file.txt')])
         time.time.assert_has_calls([call(),call()])
-        
-#    def test_dated_subdir_created_for_history_location(self):
-#        self.fail()
-        
-#    def test_history_file_not_copied_if_in_yesterdays_directory(self):
-#        self.fail()
-#
-#    def test_history_file_copy_with_when_dated_subdir_exists(self):
-#        self.fail()
-        
-        
-#- history file location is path with date appended (e.g. {historypath}\20130826\{filename})
-#- the filename used has already had the wildcard substitution
-#- if the dated directory does not already exist then it is created
-#- if the file does not already exist in the directory then
-#-- if the file arrived on a date earlier than the current date then
-#--- if the file exists in yesterday's history folder then
-#---- if yesterday's backup file is less than gintHistoryFileAgeHours (12 hrs) then
-#----- do nothing
-#- else
-#-- copy it
+            
+    def test_file_copied_when_it_becomes_eligible(self):
+        # Create a file that is too new
+        # Run the copier
+        # Check not copied
+        # make file old enough
+        src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
+        spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
+        self._make_empty_file(src_path)
+        self._make_aged_empty_file(src_path, 0)
 
+        copier = FileCopier.FileCopier(spec)
+        copier.poll()
+        time.sleep(1)
+#        copier.close()
+        self.assertEqual(len(os.listdir(self.dest_dir)), 0)
+        
+        file_age = time.time() - FileCopier.MIN_AGE_TO_COPY
+        os.utime(src_path,(file_age,file_age))
+        copier.poll()
+        time.sleep(1)
+
+        self.assertEqual(len(os.listdir(self.dest_dir)), 1)
+        self.assertEqual(os.listdir(self.dest_dir)[0], self.TEST_FILE_NAME)                
+        
 class TestDestinationPathDerivation(unittest.TestCase):
     
     def _test_one_example(self,source,target,actual_file,expected_target,is_history_location):  

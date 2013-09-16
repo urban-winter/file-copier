@@ -10,6 +10,7 @@ import os
 import time
 from datetime import date, timedelta
 import multiprocessing
+import glob
 
 
 _logger = logging.getLogger(__name__)
@@ -216,6 +217,9 @@ class FileCopier(object):
         if copy_spec is None:
             return
         _logger.debug('Spec found for %s',source_path)
+        self._copy(source_path, source_spec, copy_spec)
+            
+    def _copy(self,source_path,source_spec,copy_spec):
         for idx, dest_path in enumerate(copy_spec):
             dest_is_history_path = idx == 1
             self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path)
@@ -227,6 +231,15 @@ class FileCopier(object):
             if result[0] == 'success' and self.file_copied_callback is not None:
                 dst = result[2]
                 self.file_copied_callback(dst)
+                
+    def poll(self):
+        '''
+        Check whether there are files to copy and if so copy them
+        '''
+        for destination in self.file_copy_spec:
+            matching_files = glob.glob(destination)
+            for path in matching_files:
+                self._copy(path,destination,self.file_copy_spec[destination])
         
     def close(self):
         '''
