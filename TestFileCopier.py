@@ -287,14 +287,13 @@ class TestCopy(unittest.TestCase):
 
         copier = FileCopier.FileCopier(spec)
         copier.poll()
-        time.sleep(1)
-#        copier.close()
+        copier.flush()
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
         
         file_age = time.time() - FileCopier.MIN_AGE_TO_COPY
         os.utime(src_path,(file_age,file_age))
         copier.poll()
-        time.sleep(1)
+        copier.flush()
 
         self.assertEqual(len(os.listdir(self.dest_dir)), 1)
         self.assertEqual(os.listdir(self.dest_dir)[0], self.TEST_FILE_NAME)                

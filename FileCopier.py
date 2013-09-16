@@ -175,6 +175,7 @@ class FileCopier(object):
         self.file_copy_spec = file_copy_spec
         self.file_copied_callback = file_copied_callback
         self.pool = multiprocessing.Pool(processes=COPY_POOL_SIZE)
+        self.copy_processes_active = 0
         mgr = multiprocessing.Manager()
         self.queue = mgr.Queue()        
                 
@@ -182,6 +183,7 @@ class FileCopier(object):
         _logger.info('Copying from %s to %s',src,dst)
 #        shutil.copyfile(src,dst)           
 #        self.pool.apply_async(shutil.copyfile, (src,dst))
+        self.copy_processes_active += 1
         self.pool.apply_async(copy_file_task, (src, dst, self.queue))
 #        self._copy_file_task(src, dst)  
   
@@ -228,9 +230,18 @@ class FileCopier(object):
         while not self.queue.empty():
             result = self.queue.get()
             print 'Result retrieved: ', result
+            self.copy_processes_active -= 1
             if result[0] == 'success' and self.file_copied_callback is not None:
                 dst = result[2]
                 self.file_copied_callback(dst)
+                
+    def flush(self):
+        '''
+        Wait for all copy processes to complete
+        '''
+        while self.copy_processes_active > 0:
+            self.check_copy_status()
+            time.sleep(0.1)
                 
     def poll(self):
         '''
