@@ -29,7 +29,7 @@ class TestCopy(unittest.TestCase):
             shutil.rmtree(a_dir)
             
     def _make_aged_empty_file(self,path,file_age):
-        open(path, 'a').close()
+        open(path, 'a').flush()
         os.utime(path,(file_age,file_age))
             
     def _make_empty_file(self,path):
@@ -43,6 +43,7 @@ class TestCopy(unittest.TestCase):
 
         copier = FileCopier.FileCopier(spec)
         copier.copy('chips.txt')
+        copier.flush()
         
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
 
@@ -53,7 +54,7 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec)
         copier.copy(src_path)
-        copier.close()
+        copier.flush()
         
         self.assertEqual(len(os.listdir(self.dest_dir)), 1)
         self.assertEqual(os.listdir(self.dest_dir)[0], self.TEST_FILE_NAME)
@@ -73,7 +74,7 @@ class TestCopy(unittest.TestCase):
         copier = FileCopier.FileCopier(spec)
         copier.copy(src_path1)
         copier.copy(src_path2)
-        copier.close()
+        copier.flush()
 
         self.assertEqual(set(os.listdir(self.dest_dir)), {self.TEST_FILE_NAME,'sausages_and_chips.dat'})
         self.assertEqual(set(os.listdir(self.dest_dir2)), {'nothing_to_do_with_sausages.dat','chips_and_gravy.txt'})
@@ -85,6 +86,7 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(os.path.join(self.source_dir,'chips.txt'))
         copier = FileCopier.FileCopier(spec)
         copier.copy(os.path.join(self.source_dir,'chips.txt'))
+        copier.flush()
         self.assertEqual(set(os.listdir(self.dest_dir)), set([]))
         
     def test_wildcard_match_with_no_wildcard_in_dest_path(self):
@@ -94,7 +96,7 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(os.path.join(self.source_dir,'sausage.txt'))
         copier = FileCopier.FileCopier(spec)
         copier.copy(os.path.join(self.source_dir,'sausage.txt'))
-        copier.close()
+        copier.flush()
         self.assertEqual(set(os.listdir(self.dest_dir)), set(['chips.txt']))
         
     def _mock_callback(self,path):
@@ -107,7 +109,7 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
         copier.copy(src_path)
-        time.sleep(1)
+        copier.flush()
         copier.check_copy_status()
         
         self.assertEqual(self.mock_callback_called_with_path, os.path.join(self.dest_dir,self.TEST_FILE_NAME))
@@ -119,7 +121,8 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
         copier.copy(src_path)
-        
+        copier.flush()
+
         self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
 
     @patch('shutil.copyfile')
@@ -131,7 +134,7 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
         copier.copy(src_path)
-        time.sleep(0.1)
+        copier.flush()
         copier.check_copy_status()
         
         self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
@@ -144,9 +147,8 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
         copier.copy(src_path)
-        time.sleep(0.1)
+        copier.flush()
         copier.check_copy_status()
-        copier.close()
         
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
         self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
@@ -161,7 +163,7 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec)
         copier.copy(os.path.join(self.source_dir,'sausage.txt'))
-        copier.close()
+        copier.flush()
         
         hist_dir = date.today().strftime('%Y%m%d')
 
@@ -181,7 +183,7 @@ class TestCopy(unittest.TestCase):
         
         copier = FileCopier.FileCopier(spec)
         copier.copy(os.path.join(self.source_dir,'sausage.txt'))
-        copier.close()
+        copier.flush()
 
         expected_history_filename = 'b.txtsausage'
 
@@ -203,7 +205,7 @@ class TestCopy(unittest.TestCase):
         hist_dir = date.today().strftime('%Y%m%d')
         copier = FileCopier.FileCopier(spec)
         copier.copy(os.path.join(self.source_dir, self.TEST_FILE_NAME))
-        copier.close()
+        copier.flush()
         return hist_dir
 
     def test_history_file_copied_if_in_yesterdays_directory_but_older_than_threshold(self):

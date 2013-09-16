@@ -241,7 +241,7 @@ class FileCopier(object):
         '''
         while self.copy_processes_active > 0:
             self.check_copy_status()
-            time.sleep(0.1)
+            time.sleep(0.01)
                 
     def poll(self):
         '''
