@@ -24,12 +24,11 @@ class FileCopierMain(object):
 
     def __init__(self):
         cfg = ConfigFile(FILE_COPY_CONFIG_PATH)
-        copier = FileCopier(cfg.file_copier_spec())
-        self.watcher = DirectoryWatcher(cfg.source_directories(), copier.copy)
+        self.copier = FileCopier(cfg.file_copier_spec())
     
     def poll(self):
         _logger.debug('FileCopierMain.poll()')
-        self.watcher.look()                
+        self.copier.poll()                
 
 def main():
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)

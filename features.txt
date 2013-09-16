@@ -15,7 +15,7 @@ but ugly answer is to hard-code the fact that the history location is always the
 - multiple threads - done
 - add negative test for callback - done
 - test for file copy raising exception - done
-- If file is not successfully copied then it should be reconsidered each time.
+- If file is not successfully copied then it should be reconsidered each time - done
 - restructure source
 - implement as service
 - deployment
