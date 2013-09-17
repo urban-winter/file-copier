@@ -22,6 +22,9 @@ MAX_AGE_TO_COPY = 12 * HOURS
 MIN_AGE_TO_COPY = 60 * SECONDS
 HISTORY_FILE_AGE_THRESHOLD = 12 * HOURS
 
+MSG_SUCCESS = 'success'
+MSG_FAILURE = 'failure'
+
 COPY_POOL_SIZE = 10
 
 class CopyRules(object):
@@ -152,14 +155,9 @@ class Destination(object):
 def copy_file_task(src,dst,queue):
     try:
         shutil.copyfile(src, dst)
-        queue.put(['success',src,dst])
+        queue.put([MSG_SUCCESS,src,dst])
     except Exception as e:
-        queue.put(['failure',e])
-    finally:
-        time.sleep(0.01)
-
-            
-
+        queue.put([MSG_FAILURE,e])
 
 class FileCopier(object):
     '''
@@ -231,7 +229,7 @@ class FileCopier(object):
             result = self.queue.get()
             print 'Result retrieved: ', result
             self.copy_processes_active -= 1
-            if result[0] == 'success' and self.file_copied_callback is not None:
+            if result[0] == MSG_SUCCESS and self.file_copied_callback is not None:
                 dst = result[2]
                 self.file_copied_callback(dst)
                 
