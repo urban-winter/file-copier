@@ -6,7 +6,6 @@ Created on Aug 20, 2013
 import time
 from ConfigFile import ConfigFile
 from FileCopier import FileCopier
-from DirectoryWatcher import DirectoryWatcher
 import logging
 
 SLEEP_TIME = 5
