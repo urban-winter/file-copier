@@ -150,6 +150,10 @@ class TestCopy(unittest.TestCase):
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
         self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
         
+    def history_dir_name(self):
+        return date.today().strftime('%Y%m%d')
+
+        
     def test_that_history_processing_applies_only_to_second_destination(self):
         src_path1 = os.path.join(self.source_dir,'*.txt')
         dst_path11 = os.path.join(self.dest_dir,'a.txt')
@@ -162,12 +166,10 @@ class TestCopy(unittest.TestCase):
         copier.copy(os.path.join(self.source_dir,'sausage.txt'))
         copier.flush()
         
-        hist_dir = date.today().strftime('%Y%m%d')
-
         expected_history_filename = 'b.txtsausage'
 
-        self.assertEqual(set(os.listdir(self.dest_dir)), {'a.txt',hist_dir})
-        self.assertEqual(os.listdir(os.path.join(self.dest_dir,hist_dir)),[expected_history_filename])
+        self.assertEqual(set(os.listdir(self.dest_dir)), {'a.txt',self.history_dir_name()})
+        self.assertEqual(os.listdir(os.path.join(self.dest_dir,self.history_dir_name())),[expected_history_filename])
         
     def test_dated_history_dir_exists(self):
         src_path = os.path.join(self.source_dir,'*.txt')
@@ -175,7 +177,7 @@ class TestCopy(unittest.TestCase):
 
         spec = {src_path:[None,dst_path],}
         self._make_empty_file(os.path.join(self.source_dir,'sausage.txt'))
-        hist_dir = date.today().strftime('%Y%m%d')
+        hist_dir = self.history_dir_name()
         os.mkdir(os.path.join(self.dest_dir,hist_dir))
         
         copier = FileCopier.FileCopier(spec)
@@ -228,6 +230,25 @@ class TestCopy(unittest.TestCase):
 
         self.assertEqual(set(os.listdir(self.dest_dir)), set([hist_dir_for_yesterday,hist_dir]))
         self.assertEqual(os.listdir(os.path.join(self.dest_dir,hist_dir)),[])
+        
+    def test_no_copy_to_other_destinations_if_history_file_exists(self):
+        src_path = os.path.join(self.source_dir,'*.txt')
+        dst_history_path = os.path.join(self.dest_dir,'b.txt')
+        dst_path = os.path.join(self.dest_dir2,'b.txt')
+
+        expected_history_filename = 'b.txtsausage'
+
+        spec = {src_path:[dst_path,dst_history_path],}
+        self._make_empty_file(os.path.join(self.source_dir,'sausage.txt'))
+        hist_dir = self.history_dir_name()
+        os.mkdir(os.path.join(self.dest_dir,hist_dir))
+        self._make_empty_file(os.path.join(self.dest_dir,hist_dir,expected_history_filename))
+        
+        copier = FileCopier.FileCopier(spec)
+        copier.poll()
+        copier.flush()
+
+        self.assertEqual(os.listdir(os.path.join(self.dest_dir2)),[])
 
     @patch('os.path.exists')    
     def test_file_not_copied_if_it_exists(self,mock_exists):
