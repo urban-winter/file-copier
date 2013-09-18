@@ -16,6 +16,10 @@ but ugly answer is to hard-code the fact that the history location is always the
 - add negative test for callback - done
 - test for file copy raising exception - done
 - If file is not successfully copied then it should be reconsidered each time - done
+- If history file exists then do not copy to other destinations
 - restructure source
+- setup.py
+- make logging consistent - make important stuff INFO
 - implement as service
 - deployment
+- better data structure for the file copy spec
