@@ -36,29 +36,29 @@ class CopyRules(object):
     def file_should_be_copied(self):
         print 'file_should_be_copied called'
         return (
-                self._file_does_not_exist(self.dst_path) and 
-                self._file_is_not_too_old(self.src_path) and 
-                self._file_is_not_too_young(self.src_path) and
+                self._dest_file_does_not_exist(self.dst_path) and 
+                self._src_file_is_not_too_old(self.src_path) and 
+                self._src_file_is_not_too_young(self.src_path) and
                 self._history_file_does_not_exist()
                 )
         
-    def _file_does_not_exist(self,path):
+    def _dest_file_does_not_exist(self,path):
         retval = not os.path.exists(path)
-        print '_file_does_not_exist ', retval
+        print '_dest_file_does_not_exist ', retval
         return retval
     
-    def _file_is_not_too_old(self,path):
+    def _src_file_is_not_too_old(self,path):
         file_modified_time = os.path.getmtime(path)
         time_now = time.time()
         retval = file_modified_time > (time_now - MAX_AGE_TO_COPY)
-        print '_file_is_not_too_old ', retval
+        print '_src_file_is_not_too_old ', retval
         return retval
     
-    def _file_is_not_too_young(self,path):
+    def _src_file_is_not_too_young(self,path):
         file_modified_time = os.path.getmtime(path)
         time_now = time.time()
         retval = file_modified_time < (time_now - MIN_AGE_TO_COPY)
-        print '_file_is_not_too_young', file_modified_time < (time_now - MIN_AGE_TO_COPY)
+        print '_src_file_is_not_too_young', file_modified_time < (time_now - MIN_AGE_TO_COPY)
         return retval
     
     def _path_in_yesterdays_history_directory(self,path_in_todays_directory):
