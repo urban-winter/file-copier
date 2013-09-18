@@ -210,13 +210,11 @@ class TestCopy(unittest.TestCase):
 
 #        create file in history dir with age older than threshold
         file_age = time.time() - FileCopier.HISTORY_FILE_AGE_THRESHOLD - 1
-#        self._make_aged_empty_file(os.path.join(hist_path_for_yesterday,self.TEST_FILE_NAME), file_age)
         self._make_aged_empty_file(os.path.join(hist_path_for_yesterday,'a.txtsausage'), file_age)
 
         hist_dir = self._copy_to_history()
 
         self.assertEqual(set(os.listdir(self.dest_dir)), set([hist_dir,hist_dir_for_yesterday]))
-#        self.assertEqual(os.listdir(os.path.join(self.dest_dir,hist_dir)),[self.TEST_FILE_NAME])
         self.assertEqual(os.listdir(os.path.join(self.dest_dir,hist_dir)),['a.txtsausage'])
 
     def test_history_file_not_copied_if_in_yesterdays_directory_but_newer_than_threshold(self):
@@ -224,7 +222,6 @@ class TestCopy(unittest.TestCase):
 
 #        create file in history dir with age newer than threshold
         file_age = time.time() - FileCopier.HISTORY_FILE_AGE_THRESHOLD + 1
-#        self._make_aged_empty_file(os.path.join(hist_path_for_yesterday,self.TEST_FILE_NAME), file_age)
         self._make_aged_empty_file(os.path.join(hist_path_for_yesterday,'a.txtsausage'), file_age)
 
         hist_dir = self._copy_to_history()
