@@ -224,7 +224,7 @@ class FileCopier(object):
             dest_is_history_path = idx == 1
             self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path)
                 
-    def check_copy_status(self):
+    def _check_copy_status(self):
         while not self.queue.empty():
             result = self.queue.get()
             print 'Result retrieved: ', result
@@ -238,7 +238,7 @@ class FileCopier(object):
         Wait for all copy processes to complete
         '''
         while self.copy_processes_active > 0:
-            self.check_copy_status()
+            self._check_copy_status()
             time.sleep(0.01)
                 
     def poll(self):
