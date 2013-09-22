@@ -176,6 +176,7 @@ class FileCopier(object):
         self.copy_processes_active = 0
         mgr = multiprocessing.Manager()
         self.queue = mgr.Queue()        
+        self.copied_files = set()
                 
     def _copy_file(self,src,dst):
         _logger.info('Copying from %s to %s',src,dst)
@@ -205,6 +206,7 @@ class FileCopier(object):
             if destination.file_should_be_copied():
                 _logger.debug('Copying %s to %s',source_path,destination.path)
                 self._copy_file(source_path,destination.path)
+                self.copied_files.add(source_path)
         
     def copy(self,source_path):
         '''
@@ -218,11 +220,15 @@ class FileCopier(object):
             return
         _logger.debug('Spec found for %s',source_path)
         self._copy(source_path, source_spec, copy_spec)
+        
+    def _file_has_already_been_copied(self,path):
+        return path in self.copied_files
             
     def _copy(self,source_path,source_spec,copy_spec):
-        for idx, dest_path in enumerate(copy_spec):
-            dest_is_history_path = idx == 1
-            self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path)
+        if not self._file_has_already_been_copied(source_path):
+            for idx, dest_path in enumerate(copy_spec):
+                dest_is_history_path = idx == 1
+                self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path)
                 
     def _check_copy_status(self):
         while not self.queue.empty():

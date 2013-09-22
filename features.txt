@@ -16,7 +16,10 @@ but ugly answer is to hard-code the fact that the history location is always the
 - add negative test for callback - done
 - test for file copy raising exception - done
 - If file is not successfully copied then it should be reconsidered each time - done
-- If history file exists then do not copy to other destinations
+- If history file exists then do not copy to other destinations - more accurately, do not copy a file if it has been already copied. 
+File is identified by name and arrival date/time.
+ - query what to do if same file name is received within 12 hours. Current behavior is that it would be ignored.
+ - add test for persistence 
 - restructure source
 - setup.py
 - make logging consistent - make important stuff INFO
