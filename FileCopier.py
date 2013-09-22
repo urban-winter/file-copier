@@ -206,7 +206,8 @@ class FileCopier(object):
             if destination.file_should_be_copied():
                 _logger.debug('Copying %s to %s',source_path,destination.path)
                 self._copy_file(source_path,destination.path)
-                self.copied_files.add(source_path)
+                file_ctime = os.path.getmtime(source_path)
+                self.copied_files.add((source_path,file_ctime))
         
     def copy(self,source_path):
         '''
@@ -222,7 +223,10 @@ class FileCopier(object):
         self._copy(source_path, source_spec, copy_spec)
         
     def _file_has_already_been_copied(self,path):
-        return path in self.copied_files
+        print '_file_has_already_been_copied path: %s, ctime: %s' % (path,os.path.getmtime(path))
+        retval = (path,os.path.getmtime(path)) in self.copied_files
+        print '_file_has_already_been_copied returning ', retval
+        return retval
             
     def _copy(self,source_path,source_spec,copy_spec):
         if not self._file_has_already_been_copied(source_path):

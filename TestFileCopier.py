@@ -231,25 +231,6 @@ class TestCopy(unittest.TestCase):
         self.assertEqual(set(os.listdir(self.dest_dir)), set([hist_dir_for_yesterday,hist_dir]))
         self.assertEqual(os.listdir(os.path.join(self.dest_dir,hist_dir)),[])
         
-#    def test_no_copy_to_other_destinations_if_history_file_exists(self):
-#        src_path = os.path.join(self.source_dir,'*.txt')
-#        dst_history_path = os.path.join(self.dest_dir,'b.txt')
-#        dst_path = os.path.join(self.dest_dir2,'b.txt')
-#
-#        expected_history_filename = 'b.txtsausage'
-#
-#        spec = {src_path:[dst_path,dst_history_path],}
-#        self._make_empty_file(os.path.join(self.source_dir,'sausage.txt'))
-#        hist_dir = self.history_dir_name()
-#        os.mkdir(os.path.join(self.dest_dir,hist_dir))
-#        self._make_empty_file(os.path.join(self.dest_dir,hist_dir,expected_history_filename))
-#        
-#        copier = FileCopier.FileCopier(spec)
-#        copier.poll()
-#        copier.flush()
-#
-#        self.assertEqual(os.listdir(os.path.join(self.dest_dir2)),[])
-
     def test_file_copied_only_once(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
@@ -268,7 +249,27 @@ class TestCopy(unittest.TestCase):
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
         
     def test_file_copied_when_new_version_arrives(self):
-        self.fail('not implemented')
+        src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
+        spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
+#        self._make_empty_file(src_path)
+        self._make_aged_empty_file(src_path, FileCopier.time.time() - FileCopier.MIN_AGE_TO_COPY - 1)
+        
+        copier = FileCopier.FileCopier(spec)
+        copier.poll()
+        copier.flush()
+        
+        self.assertEqual(len(os.listdir(self.dest_dir)), 1)
+        self.assertEqual(os.listdir(self.dest_dir)[0], self.TEST_FILE_NAME)   
+        
+        os.remove(os.path.join(self.dest_dir,self.TEST_FILE_NAME))
+        os.remove(src_path)
+        
+        self._make_aged_empty_file(src_path, FileCopier.time.time() - FileCopier.MIN_AGE_TO_COPY)
+     
+        copier.poll()
+        copier.flush()
+        self.assertEqual(len(os.listdir(self.dest_dir)), 1)
+        self.assertEqual(os.listdir(self.dest_dir)[0], self.TEST_FILE_NAME)   
 
     @patch('os.path.exists')    
     def test_file_not_copied_if_it_exists(self,mock_exists):
