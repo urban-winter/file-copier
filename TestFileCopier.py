@@ -153,7 +153,6 @@ class TestCopy(unittest.TestCase):
     def history_dir_name(self):
         return date.today().strftime('%Y%m%d')
 
-        
     def test_that_history_processing_applies_only_to_second_destination(self):
         src_path1 = os.path.join(self.source_dir,'*.txt')
         dst_path11 = os.path.join(self.dest_dir,'a.txt')
@@ -188,48 +187,6 @@ class TestCopy(unittest.TestCase):
 
         self.assertEqual(os.listdir(self.dest_dir), [hist_dir])
         self.assertEqual(os.listdir(os.path.join(self.dest_dir,hist_dir)),[expected_history_filename])
-        
-    def _create_history_dir_for_yesterday(self):
-        yesterday = date.today() - timedelta(1)
-        hist_dir_for_yesterday = yesterday.strftime('%Y%m%d')
-        hist_path_for_yesterday = os.path.join(self.dest_dir, hist_dir_for_yesterday)
-        os.mkdir(hist_path_for_yesterday)
-        return hist_path_for_yesterday, hist_dir_for_yesterday
-
-    def _copy_to_history(self):
-        src_path = os.path.join(self.source_dir, '*.txt')
-        dst_path = os.path.join(self.dest_dir, 'a.txt')
-        spec = {src_path:[None, dst_path]}
-        self._make_empty_file(os.path.join(self.source_dir, self.TEST_FILE_NAME))
-        hist_dir = date.today().strftime('%Y%m%d')
-        copier = FileCopier.FileCopier(spec)
-        copier.copy(os.path.join(self.source_dir, self.TEST_FILE_NAME))
-        copier.flush()
-        return hist_dir
-
-    def test_history_file_copied_if_in_yesterdays_directory_but_older_than_threshold(self):
-        hist_path_for_yesterday, hist_dir_for_yesterday = self._create_history_dir_for_yesterday()
-
-#        create file in history dir with age older than threshold
-        file_age = time.time() - FileCopier.HISTORY_FILE_AGE_THRESHOLD - 1
-        self._make_aged_empty_file(os.path.join(hist_path_for_yesterday,'a.txtsausage'), file_age)
-
-        hist_dir = self._copy_to_history()
-
-        self.assertEqual(set(os.listdir(self.dest_dir)), set([hist_dir,hist_dir_for_yesterday]))
-        self.assertEqual(os.listdir(os.path.join(self.dest_dir,hist_dir)),['a.txtsausage'])
-
-    def test_history_file_not_copied_if_in_yesterdays_directory_but_newer_than_threshold(self):
-        hist_path_for_yesterday, hist_dir_for_yesterday = self._create_history_dir_for_yesterday()
-
-#        create file in history dir with age newer than threshold
-        file_age = time.time() - FileCopier.HISTORY_FILE_AGE_THRESHOLD + 2
-        self._make_aged_empty_file(os.path.join(hist_path_for_yesterday,'a.txtsausage'), file_age)
-
-        hist_dir = self._copy_to_history()
-
-        self.assertEqual(set(os.listdir(self.dest_dir)), set([hist_dir_for_yesterday,hist_dir]))
-        self.assertEqual(os.listdir(os.path.join(self.dest_dir,hist_dir)),[])
         
     def test_file_copied_only_once(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)

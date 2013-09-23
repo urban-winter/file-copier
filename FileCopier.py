@@ -38,8 +38,7 @@ class CopyRules(object):
         return (
                 self._dest_file_does_not_exist(self.dst_path) and 
                 self._src_file_is_not_too_old(self.src_path) and 
-                self._src_file_is_not_too_young(self.src_path) and
-                self._history_file_does_not_exist()
+                self._src_file_is_not_too_young(self.src_path)
                 )
         
     def _dest_file_does_not_exist(self,path):
@@ -61,27 +60,6 @@ class CopyRules(object):
         print '_src_file_is_not_too_young', file_modified_time < (time_now - MIN_AGE_TO_COPY)
         return retval
     
-    def _path_in_yesterdays_history_directory(self,path_in_todays_directory):
-        yesterday = date.today() - timedelta(1)
-        hist_dir_name_yesterday = yesterday.strftime('%Y%m%d')
-        history_path,filename = os.path.split(self.dst_path)
-        history_base,dummy = os.path.split(history_path)
-        return os.path.join(history_base,hist_dir_name_yesterday,filename)
-    
-    def _history_file_does_not_exist(self):
-        if not self.is_history_path:
-            retval = True
-        else:
-            path_in_yesterdays_history = self._path_in_yesterdays_history_directory(self.dst_path)
-            if not os.path.exists(path_in_yesterdays_history):
-                retval = True #History file does not exist in yesterday's directory
-            else:
-                file_modified_time = os.path.getmtime(path_in_yesterdays_history)
-                time_now = time.time()
-                retval = file_modified_time < (time_now - HISTORY_FILE_AGE_THRESHOLD)
-        print '_history_file_does_not_exist ',retval # History file effectively doesn't exist if it is older than threshold
-        return retval 
-
 class Destination(object):
     
     def __init__(self,source_spec,source_path,dest_spec,dest_is_history_path):
