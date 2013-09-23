@@ -9,7 +9,7 @@ import shutil
 import os
 import FileCopier
 import logging
-from datetime import date, timedelta
+from datetime import date
 
 from mock import patch, call
 import time
@@ -208,7 +208,6 @@ class TestCopy(unittest.TestCase):
     def test_file_copied_when_new_version_arrives(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
-#        self._make_empty_file(src_path)
         self._make_aged_empty_file(src_path, FileCopier.time.time() - FileCopier.MIN_AGE_TO_COPY - 1)
         
         copier = FileCopier.FileCopier(spec)

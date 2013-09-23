@@ -8,10 +8,10 @@ import logging
 import fnmatch
 import os
 import time
-from datetime import date, timedelta
+from datetime import date
 import multiprocessing
 import glob
-
+from FileCopyHistoryStore import FileCopyHistoryStore
 
 _logger = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ class FileCopier(object):
         self.copy_processes_active = 0
         mgr = multiprocessing.Manager()
         self.queue = mgr.Queue()        
-        self.copied_files = set()
+        self.copied_files = FileCopyHistoryStore()
                 
     def _copy_file(self,src,dst):
         _logger.info('Copying from %s to %s',src,dst)
@@ -185,7 +185,7 @@ class FileCopier(object):
                 _logger.debug('Copying %s to %s',source_path,destination.path)
                 self._copy_file(source_path,destination.path)
                 file_ctime = os.path.getmtime(source_path)
-                self.copied_files.add((source_path,file_ctime))
+                self.copied_files.add(source_path,file_ctime)
         
     def copy(self,source_path):
         '''
@@ -198,15 +198,15 @@ class FileCopier(object):
         if copy_spec is None:
             return
         _logger.debug('Spec found for %s',source_path)
-        self._copy(source_path, source_spec, copy_spec)
+        self._process_all_destinations(source_path, source_spec, copy_spec)
         
     def _file_has_already_been_copied(self,path):
         print '_file_has_already_been_copied path: %s, ctime: %s' % (path,os.path.getmtime(path))
-        retval = (path,os.path.getmtime(path)) in self.copied_files
+        retval =  self.copied_files.contains(path,os.path.getmtime(path))
         print '_file_has_already_been_copied returning ', retval
         return retval
             
-    def _copy(self,source_path,source_spec,copy_spec):
+    def _process_all_destinations(self,source_path,source_spec,copy_spec):
         if not self._file_has_already_been_copied(source_path):
             for idx, dest_path in enumerate(copy_spec):
                 dest_is_history_path = idx == 1
@@ -236,12 +236,6 @@ class FileCopier(object):
         for destination in self.file_copy_spec:
             matching_files = glob.glob(destination)
             for path in matching_files:
-                self._copy(path,destination,self.file_copy_spec[destination])
+                self._process_all_destinations(path,destination,self.file_copy_spec[destination])
+        self._check_copy_status()
         
-    def close(self):
-        '''
-        Wait for any in-progress work to complete. This is needed for unit tests.
-        '''
-        _logger.debug('FileCopier.close()')
-        self.pool.close()
-        self.pool.join()
