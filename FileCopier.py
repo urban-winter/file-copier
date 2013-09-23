@@ -157,54 +157,31 @@ class FileCopier(object):
         self.copied_files = FileCopyHistoryStore()
                 
     def _copy_file(self,src,dst):
-        _logger.info('Copying from %s to %s',src,dst)
-#        shutil.copyfile(src,dst)           
-#        self.pool.apply_async(shutil.copyfile, (src,dst))
+        _logger.info('Queuing copy from %s to %s',src,dst)
         self.copy_processes_active += 1
         self.pool.apply_async(copy_file_task, (src, dst, self.queue))
-#        self._copy_file_task(src, dst)  
+        self._record_that_file_has_been_copied(src)
   
-    def _wildcard_match(self,spec,target):
-        '''
-        Does the target match the spec?
-        
-        '''
-        return fnmatch.fnmatch(target, spec)
-    
     def _find_copy_spec(self,source_path):
         for source_spec in self.file_copy_spec:
-            if self._wildcard_match(source_spec,source_path):
+            if fnmatch.fnmatch(source_path, source_spec):
                 return self.file_copy_spec[source_spec], source_spec
         return None, None
     
     def _process_one_destination(self,dest_path,source_path,source_spec,dest_is_history_path):
         if dest_path is not None:
-            _logger.debug('Processing destination path: %s', dest_path)
+            _logger.debug('Processing destination path: %s for source file: %s', dest_path, source_path)
             destination = Destination(source_spec,source_path,dest_path,dest_is_history_path)
             if destination.file_should_be_copied():
-                _logger.debug('Copying %s to %s',source_path,destination.path)
                 self._copy_file(source_path,destination.path)
-                file_ctime = os.path.getmtime(source_path)
-                self.copied_files.add(source_path,file_ctime)
-        
-    def copy(self,source_path):
-        '''
-        Copy the file at source_path to all specified destinations
-        
-        Destinations are specified when a FileCopier instance is created.
-        Destinations are identified by a wildcard search on the spec keys
-        '''
-        copy_spec, source_spec = self._find_copy_spec(source_path)
-        if copy_spec is None:
-            return
-        _logger.debug('Spec found for %s',source_path)
-        self._process_all_destinations(source_path, source_spec, copy_spec)
         
     def _file_has_already_been_copied(self,path):
-        print '_file_has_already_been_copied path: %s, ctime: %s' % (path,os.path.getmtime(path))
-        retval =  self.copied_files.contains(path,os.path.getmtime(path))
-        print '_file_has_already_been_copied returning ', retval
-        return retval
+        return self.copied_files.contains(path,os.path.getmtime(path))
+    
+    def _record_that_file_has_been_copied(self, path):
+        file_ctime = os.path.getmtime(path)
+        self.copied_files.add(path,file_ctime)
+
             
     def _process_all_destinations(self,source_path,source_spec,copy_spec):
         if not self._file_has_already_been_copied(source_path):
@@ -213,9 +190,14 @@ class FileCopier(object):
                 self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path)
                 
     def _check_copy_status(self):
+        '''
+        Drain the queue of status messages and process each. 
+        
+        Call the callback function (if specified) for each success.
+        Decrement the count of outstanding copy processes for each status message received.
+        '''
         while not self.queue.empty():
             result = self.queue.get()
-            print 'Result retrieved: ', result
             self.copy_processes_active -= 1
             if result[0] == MSG_SUCCESS and self.file_copied_callback is not None:
                 dst = result[2]
@@ -233,6 +215,7 @@ class FileCopier(object):
         '''
         Check whether there are files to copy and if so copy them
         '''
+        _logger.debug('FileCopier.poll() called')
         for destination in self.file_copy_spec:
             matching_files = glob.glob(destination)
             for path in matching_files:

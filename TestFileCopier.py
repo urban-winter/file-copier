@@ -42,7 +42,7 @@ class TestCopy(unittest.TestCase):
         spec = {os.path.join(self.source_dir,self.TEST_FILE_NAME):[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
 
         copier = FileCopier.FileCopier(spec)
-        copier.copy('chips.txt')
+        copier.poll()
         copier.flush()
         
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
@@ -53,7 +53,7 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(src_path)
         
         copier = FileCopier.FileCopier(spec)
-        copier.copy(src_path)
+        copier.poll()
         copier.flush()
         
         self.assertEqual(len(os.listdir(self.dest_dir)), 1)
@@ -72,8 +72,7 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(src_path2)
         
         copier = FileCopier.FileCopier(spec)
-        copier.copy(src_path1)
-        copier.copy(src_path2)
+        copier.poll()
         copier.flush()
 
         self.assertEqual(set(os.listdir(self.dest_dir)), {self.TEST_FILE_NAME,'sausages_and_chips.dat'})
@@ -85,7 +84,7 @@ class TestCopy(unittest.TestCase):
         spec = {src_path1:[dst_path1]}
         self._make_empty_file(os.path.join(self.source_dir,'chips.txt'))
         copier = FileCopier.FileCopier(spec)
-        copier.copy(os.path.join(self.source_dir,'chips.txt'))
+        copier.poll()
         copier.flush()
         self.assertEqual(set(os.listdir(self.dest_dir)), set([]))
         
@@ -95,7 +94,7 @@ class TestCopy(unittest.TestCase):
         spec = {src_path1:[dst_path1]}
         self._make_empty_file(os.path.join(self.source_dir,'sausage.txt'))
         copier = FileCopier.FileCopier(spec)
-        copier.copy(os.path.join(self.source_dir,'sausage.txt'))
+        copier.poll()
         copier.flush()
         self.assertEqual(set(os.listdir(self.dest_dir)), set(['chips.txt']))
         
@@ -108,7 +107,7 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(src_path)
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
-        copier.copy(src_path)
+        copier.poll()
         copier.flush()
         
         self.assertEqual(self.mock_callback_called_with_path, os.path.join(self.dest_dir,self.TEST_FILE_NAME))
@@ -119,7 +118,7 @@ class TestCopy(unittest.TestCase):
         self._make_aged_empty_file(src_path,FileCopier.MAX_AGE_TO_COPY+1) # too old to copy
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
-        copier.copy(src_path)
+        copier.poll()
         copier.flush()
 
         self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
@@ -132,7 +131,7 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(src_path)
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
-        copier.copy(src_path)
+        copier.poll()
         copier.flush()
         
         self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
@@ -144,7 +143,7 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(src_path)
         
         copier = FileCopier.FileCopier(spec,self._mock_callback)
-        copier.copy(src_path)
+        copier.poll()
         copier.flush()
         
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
@@ -162,7 +161,7 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(os.path.join(self.source_dir,'sausage.txt'))
         
         copier = FileCopier.FileCopier(spec)
-        copier.copy(os.path.join(self.source_dir,'sausage.txt'))
+        copier.poll()
         copier.flush()
         
         expected_history_filename = 'b.txtsausage'
@@ -180,7 +179,7 @@ class TestCopy(unittest.TestCase):
         os.mkdir(os.path.join(self.dest_dir,hist_dir))
         
         copier = FileCopier.FileCopier(spec)
-        copier.copy(os.path.join(self.source_dir,'sausage.txt'))
+        copier.poll()
         copier.flush()
 
         expected_history_filename = 'b.txtsausage'
