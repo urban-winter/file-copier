@@ -27,6 +27,31 @@ MSG_FAILURE = 'failure'
 
 COPY_POOL_SIZE = 10
 
+class CopyStatus(object):
+
+    def __init__(self,source,destination):
+        self.source = source
+        self.destination = destination
+        
+    def __eq__(self, other): 
+        # TODO: Comparison (only used for testing) does not work for the CopyFailure sub-class because
+        # exceptions are not comparable
+        print 'CopyStatus.__eq__ called'
+        for element in self.__dict__:
+            print '__eq__ %s: %s' % (element, self.__dict__[element] == other.__dict__[element])
+        return self.__dict__ == other.__dict__
+    
+    def __str__(self):
+        return str(self.__dict__)
+        
+class CopySuccess(CopyStatus):
+    pass
+
+class CopyFailure(CopyStatus):
+    def __init__(self,source,destination,exception):
+        super(CopyFailure,self).__init__(source,destination)
+        self.exception = exception
+
 class CopyRules(object):
     def __init__(self,src_path,dst_path,is_history_path=False):
         self.src_path = src_path
@@ -133,20 +158,18 @@ class Destination(object):
 def copy_file_task(src,dst,queue):
     try:
         shutil.copyfile(src, dst)
-        queue.put([MSG_SUCCESS,src,dst])
+        queue.put(CopySuccess(src,dst))
     except Exception as e:
-        queue.put([MSG_FAILURE,e])
+        queue.put(CopyFailure(src,dst,e))
 
 class FileCopier(object):
-    '''
-    TODO:
-    - if dest file already exists then delete before copying
-    '''
 
     def __init__(self,file_copy_spec,file_copied_callback = None):
         '''
         file_copy_spec is dictionary indexed by full source path containing list of full 
         destination paths
+        
+        file_copied_callback is called for each attempted file copy and passed a CopyStatus
         '''
         self.file_copy_spec = file_copy_spec
         self.file_copied_callback = file_copied_callback
@@ -199,9 +222,8 @@ class FileCopier(object):
         while not self.queue.empty():
             result = self.queue.get()
             self.copy_processes_active -= 1
-            if result[0] == MSG_SUCCESS and self.file_copied_callback is not None:
-                dst = result[2]
-                self.file_copied_callback(dst)
+            if self.file_copied_callback is not None:
+                self.file_copied_callback(result)
                 
     def flush(self):
         '''

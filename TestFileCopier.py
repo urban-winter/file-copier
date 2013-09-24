@@ -7,7 +7,7 @@ import unittest
 import tempfile
 import shutil
 import os
-import FileCopier
+from FileCopier import FileCopier, CopySuccess, CopyFailure, MIN_AGE_TO_COPY, Destination, CopyRules, MAX_AGE_TO_COPY
 import logging
 from datetime import date
 
@@ -35,13 +35,13 @@ class TestCopy(unittest.TestCase):
     def _make_empty_file(self,path):
         # File modification time must be in the past otherwise the file will be
         # skipped as too young
-        file_age = time.time() - FileCopier.MIN_AGE_TO_COPY
+        file_age = time.time() - MIN_AGE_TO_COPY
         self._make_aged_empty_file(path, file_age)
 
     def test_single_source_single_destination_no_match(self):
         spec = {os.path.join(self.source_dir,self.TEST_FILE_NAME):[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
 
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
         
@@ -52,7 +52,7 @@ class TestCopy(unittest.TestCase):
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
         self._make_empty_file(src_path)
         
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
         
@@ -71,7 +71,7 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(src_path1)
         self._make_empty_file(src_path2)
         
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
 
@@ -83,7 +83,7 @@ class TestCopy(unittest.TestCase):
         dst_path1 = os.path.join(self.dest_dir,'sausa*.txt')
         spec = {src_path1:[dst_path1]}
         self._make_empty_file(os.path.join(self.source_dir,'chips.txt'))
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
         self.assertEqual(set(os.listdir(self.dest_dir)), set([]))
@@ -93,61 +93,75 @@ class TestCopy(unittest.TestCase):
         dst_path1 = os.path.join(self.dest_dir,'chips.txt')
         spec = {src_path1:[dst_path1]}
         self._make_empty_file(os.path.join(self.source_dir,'sausage.txt'))
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
         self.assertEqual(set(os.listdir(self.dest_dir)), set(['chips.txt']))
         
-    def _mock_callback(self,path):
-        self.mock_callback_called_with_path = path
+    def _mock_callback(self,status):
+        self.mock_callback_called_with_status = status
     
     def test_file_copy_complete_callback(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
         self._make_empty_file(src_path)
         
-        copier = FileCopier.FileCopier(spec,self._mock_callback)
+        copier = FileCopier(spec,self._mock_callback)
         copier.poll()
         copier.flush()
         
-        self.assertEqual(self.mock_callback_called_with_path, os.path.join(self.dest_dir,self.TEST_FILE_NAME))
+        self.assertEqual(self.mock_callback_called_with_status, CopySuccess(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME)))
 
     def test_file_copy_complete_callback_not_called_if_file_not_copied(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
-        self._make_aged_empty_file(src_path,FileCopier.MAX_AGE_TO_COPY+1) # too old to copy
+        self._make_aged_empty_file(src_path,MAX_AGE_TO_COPY+1) # too old to copy
         
-        copier = FileCopier.FileCopier(spec,self._mock_callback)
+        copier = FileCopier(spec,self._mock_callback)
         copier.poll()
         copier.flush()
 
-        self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
+        self.assertFalse(hasattr(self, 'mock_callback_called_with_status'))
+        
+    def _copy_status_equal(self,this,that):
+        return (
+                this.destination == that.destination and
+                this.source == that.source and
+                type(this.exception) == type(that.exception) and
+                this.exception.args == that.exception.args
+                )
 
     @patch('shutil.copyfile')
-    def test_file_copy_complete_callback_not_called_if_exception_raised(self,*args):
-        shutil.copyfile.side_effect = Exception('anything')
+    def test_file_copy_complete_callback_called_if_exception_raised(self,*args):
+        e = Exception('anything')
+        shutil.copyfile.side_effect = e
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
         self._make_empty_file(src_path)
         
-        copier = FileCopier.FileCopier(spec,self._mock_callback)
+        copier = FileCopier(spec,self._mock_callback)
         copier.poll()
         copier.flush()
         
-        self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
+        self.assertTrue(self._copy_status_equal(self.mock_callback_called_with_status, 
+                                                CopyFailure(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),e)))
         
-    def test_file_copy_complete_callback_not_called_if_destination_is_read_only(self):
+    def test_file_copy_complete_callback_called_if_destination_is_read_only(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
         os.chmod(self.dest_dir,stat.S_IREAD)
         self._make_empty_file(src_path)
         
-        copier = FileCopier.FileCopier(spec,self._mock_callback)
+        copier = FileCopier(spec,self._mock_callback)
         copier.poll()
         copier.flush()
         
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
-        self.assertFalse(hasattr(self, 'mock_callback_called_with_path'))
+        self.assertTrue(self._copy_status_equal(self.mock_callback_called_with_status, 
+                                                 CopyFailure(src_path,os.path.join(
+                                                                                   self.dest_dir,
+                                                                                   self.TEST_FILE_NAME),
+                                                             IOError(13, 'Permission denied'))))
         
     def history_dir_name(self):
         return date.today().strftime('%Y%m%d')
@@ -160,7 +174,7 @@ class TestCopy(unittest.TestCase):
         spec = {src_path1:[dst_path11,dst_path12],}
         self._make_empty_file(os.path.join(self.source_dir,'sausage.txt'))
         
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
         
@@ -178,7 +192,7 @@ class TestCopy(unittest.TestCase):
         hist_dir = self.history_dir_name()
         os.mkdir(os.path.join(self.dest_dir,hist_dir))
         
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
 
@@ -192,7 +206,7 @@ class TestCopy(unittest.TestCase):
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
         self._make_empty_file(src_path)
         
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
         
@@ -207,9 +221,9 @@ class TestCopy(unittest.TestCase):
     def test_file_copied_when_new_version_arrives(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
-        self._make_aged_empty_file(src_path, FileCopier.time.time() - FileCopier.MIN_AGE_TO_COPY - 1)
+        self._make_aged_empty_file(src_path, time.time() - MIN_AGE_TO_COPY - 1)
         
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
         
@@ -219,7 +233,7 @@ class TestCopy(unittest.TestCase):
         os.remove(os.path.join(self.dest_dir,self.TEST_FILE_NAME))
         os.remove(src_path)
         
-        self._make_aged_empty_file(src_path, FileCopier.time.time() - FileCopier.MIN_AGE_TO_COPY)
+        self._make_aged_empty_file(src_path, time.time() - MIN_AGE_TO_COPY)
      
         copier.poll()
         copier.flush()
@@ -229,7 +243,7 @@ class TestCopy(unittest.TestCase):
     @patch('os.path.exists')    
     def test_file_not_copied_if_it_exists(self,mock_exists):
         os.path.exists.return_value = True
-        self.assertFalse(FileCopier.CopyRules('dummy', 'a_file.txt').file_should_be_copied())
+        self.assertFalse(CopyRules('dummy', 'a_file.txt').file_should_be_copied())
         os.path.exists.assert_called_once_with('a_file.txt')
         
     @patch('os.path.exists')    
@@ -240,7 +254,7 @@ class TestCopy(unittest.TestCase):
         os.path.getmtime.return_value = time.mktime(time.strptime('2012-02-14 01:00:00','%Y-%m-%d %H:%M:%S'))
         time.time.return_value = time.mktime(time.strptime('2012-02-14 13:00:00','%Y-%m-%d %H:%M:%S'))
         print os.path.getmtime
-        self.assertFalse(FileCopier.CopyRules('a_file.txt', 'dummy').file_should_be_copied())
+        self.assertFalse(CopyRules('a_file.txt', 'dummy').file_should_be_copied())
         os.path.getmtime.assert_called_once_with('a_file.txt')
         time.time.assert_called_once_with()
 
@@ -252,7 +266,7 @@ class TestCopy(unittest.TestCase):
         os.path.getmtime.return_value = time.mktime(time.strptime('2012-02-14 01:00:00','%Y-%m-%d %H:%M:%S'))
         time.time.return_value = time.mktime(time.strptime('2012-02-14 12:59:59','%Y-%m-%d %H:%M:%S'))
         print os.path.getmtime
-        self.assertTrue(FileCopier.CopyRules('a_file.txt', 'dummy').file_should_be_copied())
+        self.assertTrue(CopyRules('a_file.txt', 'dummy').file_should_be_copied())
         os.path.getmtime.assert_has_calls([call('a_file.txt'),call('a_file.txt')])
         time.time.assert_has_calls([call(),call()])
         
@@ -264,7 +278,7 @@ class TestCopy(unittest.TestCase):
         os.path.getmtime.return_value = time.mktime(time.strptime('2012-02-14 01:00:00','%Y-%m-%d %H:%M:%S'))
         time.time.return_value = time.mktime(time.strptime('2012-02-14 01:00:59','%Y-%m-%d %H:%M:%S'))
         print os.path.getmtime
-        self.assertFalse(FileCopier.CopyRules('a_file.txt', 'dummy').file_should_be_copied())
+        self.assertFalse(CopyRules('a_file.txt', 'dummy').file_should_be_copied())
         os.path.getmtime.assert_has_calls([call('a_file.txt'),call('a_file.txt')])
         time.time.assert_has_calls([call(),call()])
             
@@ -278,12 +292,12 @@ class TestCopy(unittest.TestCase):
         self._make_empty_file(src_path)
         self._make_aged_empty_file(src_path, 0)
 
-        copier = FileCopier.FileCopier(spec)
+        copier = FileCopier(spec)
         copier.poll()
         copier.flush()
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
         
-        file_age = time.time() - FileCopier.MIN_AGE_TO_COPY
+        file_age = time.time() - MIN_AGE_TO_COPY
         os.utime(src_path,(file_age,file_age))
         copier.poll()
         copier.flush()
@@ -294,7 +308,7 @@ class TestCopy(unittest.TestCase):
 class TestDestinationPathDerivation(unittest.TestCase):
     
     def _test_one_example(self,source,target,actual_file,expected_target,is_history_location):  
-        dest = FileCopier.Destination(source_spec=source,
+        dest = Destination(source_spec=source,
                                       dest_spec = target,
                                       source_path = actual_file,
                                       dest_is_history_path = is_history_location)    
