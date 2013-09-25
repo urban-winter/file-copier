@@ -12,6 +12,7 @@ from datetime import date
 import multiprocessing
 import glob
 from FileCopyHistoryStore import FileCopyHistoryStore
+from CopyStatus import CopySuccess, CopyFailure
 
 _logger = logging.getLogger(__name__)
 
@@ -22,78 +23,7 @@ MAX_AGE_TO_COPY = 12 * HOURS
 MIN_AGE_TO_COPY = 60 * SECONDS
 HISTORY_FILE_AGE_THRESHOLD = 12 * HOURS
 
-MSG_SUCCESS = 'success'
-MSG_FAILURE = 'failure'
-
 COPY_POOL_SIZE = 10
-
-class CopyStatus(object):
-
-    def __init__(self,source,destination,start_time,end_time,file_size):
-        self.source = source
-        self.destination = destination
-        self.start_time = start_time
-        self.end_time = end_time
-        self.file_size = file_size
-        
-    def __eq__(self, other): 
-        # TODO: Comparison (only used for testing) does not work for the CopyFailure sub-class because
-        # exceptions are not comparable
-        print 'CopyStatus.__eq__ called'
-        for element in self.__dict__:
-            print '__eq__ %s: %s' % (element, self.__dict__[element] == other.__dict__[element])
-        return self.__dict__ == other.__dict__
-    
-    def __str__(self):
-        return str(self.__dict__)
-    
-    def _log_details(self):
-        fmt = '%d %b %Y %H:%M:%S'
-        return 'Source: %s Destination: %s Start: %s End: %s Duration: %s Size: %s ' % (
-                    self.source, 
-                    self.destination, 
-                    time.strftime(fmt,self.start_time), 
-                    time.strftime(fmt,self.end_time),
-                    time.mktime(self.end_time) - time.mktime(self.start_time),
-                    self.file_size)
-    
-    def _log_pre(self):
-        assert(False) # should be overriden in subclass
-        
-    def _log_post(self):
-        return ''
-        
-    def _log_class(self):
-        assert(False) # should be overriden in subclass
-        
-    def _log_msg(self):
-        return self._log_pre() + self._log_details() + self._log_post() 
-    
-    def log(self,logger):
-        logger.log(self._log_class(),self._log_msg())
-        
-class CopySuccess(CopyStatus):
-    
-    def _log_pre(self):
-        return 'File copied. '
-    
-    def _log_class(self):
-        return logging.INFO
-    
-class CopyFailure(CopyStatus):
-    
-    def __init__(self,source,destination,start_time,end_time,file_size,exception):
-        super(CopyFailure,self).__init__(source,destination,start_time,end_time,file_size)
-        self.exception = exception
-
-    def _log_pre(self):
-        return 'File copy failed. '
-    
-    def _log_class(self):
-        return logging.ERROR
-    
-    def _log_post(self):
-        return 'Exception: ' + str(self.exception)
         
 class CopyRules(object):
     def __init__(self,src_path,dst_path,is_history_path=False):
@@ -199,6 +129,12 @@ class Destination(object):
         return os.path.join(dirname,dated_subdir,fname)
 
 def copy_file_task(src,dst,queue):
+    '''
+    Copy a file from src to dst and place a CopyStatus object on the queue when complete.
+    
+    This function supports copying in a separate process. It cannot be an instance method because
+    multiprocessing does not allow instance methods to be run in a separate process.
+    '''
     try:
         start_time = time.localtime()
         shutil.copyfile(src, dst)
@@ -252,7 +188,6 @@ class FileCopier(object):
         file_ctime = os.path.getmtime(path)
         self.copied_files.add(path,file_ctime)
 
-            
     def _process_all_destinations(self,source_path,source_spec,copy_spec):
         if not self._file_has_already_been_copied(source_path):
             for idx, dest_path in enumerate(copy_spec):
@@ -263,8 +198,9 @@ class FileCopier(object):
         '''
         Drain the queue of status messages and process each. 
         
-        Call the callback function (if specified) for each success.
+        Call the callback function (if specified) for each status message.
         Decrement the count of outstanding copy processes for each status message received.
+        Log each status.
         '''
         while not self.queue.empty():
             result = self.queue.get()
