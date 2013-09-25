@@ -47,11 +47,13 @@ class CopyStatus(object):
         return str(self.__dict__)
     
     def _log_details(self):
-#        return 'Source: %s Destination: %s Start: %s End: %s Duration: %s ' % (
-#                    self.source, self.destination, self.start_time, self.end_time, self.end_time - self.start_time)
         fmt = '%d %b %Y %H:%M:%S'
-        return 'Source: %s Destination: %s Start: %s End: %s ' % (
-                    self.source, self.destination, time.strftime(fmt,self.start_time), time.strftime(fmt,self.end_time))
+        return 'Source: %s Destination: %s Start: %s End: %s Duration: %s ' % (
+                    self.source, 
+                    self.destination, 
+                    time.strftime(fmt,self.start_time), 
+                    time.strftime(fmt,self.end_time),
+                    time.mktime(self.end_time) - time.mktime(self.start_time))
     
     def _log_pre(self):
         assert(False) # should be overriden in subclass

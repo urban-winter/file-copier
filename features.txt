@@ -21,7 +21,7 @@ File is identified by name and arrival date/time. - done
  - query what to do if same file name is received within 12 hours. Current behavior is that it would be ignored.
  - add test for persistence - done
 - log start time, end time for each copy - done
-- log duration
+- log duration - done
 - log size of each copy
 - restructure source
 - setup.py
