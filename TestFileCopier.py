@@ -100,6 +100,14 @@ class TestCopy(unittest.TestCase):
         
     def _mock_callback(self,status):
         self.mock_callback_called_with_status = status
+
+    def _copy_status_equal(self,this,that):
+        return (
+                this.destination == that.destination and
+                this.source == that.source and type(this) == CopySuccess or
+                (type(this.exception) == type(that.exception) and
+                this.exception.args == that.exception.args)
+                )
     
     def test_file_copy_complete_callback(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
@@ -110,7 +118,10 @@ class TestCopy(unittest.TestCase):
         copier.poll()
         copier.flush()
         
-        self.assertEqual(self.mock_callback_called_with_status, CopySuccess(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME)))
+#        self.assertEqual(self.mock_callback_called_with_status, CopySuccess(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),None,None))
+        self.assertTrue(self._copy_status_equal(
+                                                self.mock_callback_called_with_status, 
+                                                CopySuccess(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),None,None)))
 
     def test_file_copy_complete_callback_not_called_if_file_not_copied(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
@@ -123,14 +134,6 @@ class TestCopy(unittest.TestCase):
 
         self.assertFalse(hasattr(self, 'mock_callback_called_with_status'))
         
-    def _copy_status_equal(self,this,that):
-        return (
-                this.destination == that.destination and
-                this.source == that.source and
-                type(this.exception) == type(that.exception) and
-                this.exception.args == that.exception.args
-                )
-
     @patch('shutil.copyfile')
     def test_file_copy_complete_callback_called_if_exception_raised(self,*args):
         e = Exception('anything')
@@ -144,7 +147,7 @@ class TestCopy(unittest.TestCase):
         copier.flush()
         
         self.assertTrue(self._copy_status_equal(self.mock_callback_called_with_status, 
-                                                CopyFailure(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),e)))
+                                                CopyFailure(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),None,None,e)))
         
     def test_file_copy_complete_callback_called_if_destination_is_read_only(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
@@ -161,6 +164,8 @@ class TestCopy(unittest.TestCase):
                                                  CopyFailure(src_path,os.path.join(
                                                                                    self.dest_dir,
                                                                                    self.TEST_FILE_NAME),
+                                                             None,
+                                                             None,
                                                              IOError(13, 'Permission denied'))))
         
     def history_dir_name(self):

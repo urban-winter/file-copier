@@ -20,7 +20,9 @@ but ugly answer is to hard-code the fact that the history location is always the
 File is identified by name and arrival date/time. - done
  - query what to do if same file name is received within 12 hours. Current behavior is that it would be ignored.
  - add test for persistence - done
-- log start time, end time and duration for each copy
+- log start time, end time for each copy - done
+- log duration
+- log size of each copy
 - restructure source
 - setup.py
 - make logging consistent - make important stuff INFO

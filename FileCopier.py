@@ -29,9 +29,11 @@ COPY_POOL_SIZE = 10
 
 class CopyStatus(object):
 
-    def __init__(self,source,destination):
+    def __init__(self,source,destination,start_time,end_time):
         self.source = source
         self.destination = destination
+        self.start_time = start_time
+        self.end_time = end_time
         
     def __eq__(self, other): 
         # TODO: Comparison (only used for testing) does not work for the CopyFailure sub-class because
@@ -43,15 +45,52 @@ class CopyStatus(object):
     
     def __str__(self):
         return str(self.__dict__)
+    
+    def _log_details(self):
+#        return 'Source: %s Destination: %s Start: %s End: %s Duration: %s ' % (
+#                    self.source, self.destination, self.start_time, self.end_time, self.end_time - self.start_time)
+        fmt = '%d %b %Y %H:%M:%S'
+        return 'Source: %s Destination: %s Start: %s End: %s ' % (
+                    self.source, self.destination, time.strftime(fmt,self.start_time), time.strftime(fmt,self.end_time))
+    
+    def _log_pre(self):
+        assert(False) # should be overriden in subclass
+        
+    def _log_post(self):
+        return ''
+        
+    def _log_class(self):
+        assert(False) # should be overriden in subclass
+        
+    def _log_msg(self):
+        return self._log_pre() + self._log_details() + self._log_post() 
+    
+    def log(self,logger):
+        logger.log(self._log_class(),self._log_msg())
         
 class CopySuccess(CopyStatus):
-    pass
-
+    
+    def _log_pre(self):
+        return 'File copied. '
+    
+    def _log_class(self):
+        return logging.INFO
+    
 class CopyFailure(CopyStatus):
-    def __init__(self,source,destination,exception):
-        super(CopyFailure,self).__init__(source,destination)
+    
+    def __init__(self,source,destination,start_time,end_time,exception):
+        super(CopyFailure,self).__init__(source,destination,start_time,end_time)
         self.exception = exception
 
+    def _log_pre(self):
+        return 'File copy failed. '
+    
+    def _log_class(self):
+        return logging.ERROR
+    
+    def _log_post(self):
+        return str(self.exception)
+        
 class CopyRules(object):
     def __init__(self,src_path,dst_path,is_history_path=False):
         self.src_path = src_path
@@ -157,10 +196,13 @@ class Destination(object):
 
 def copy_file_task(src,dst,queue):
     try:
+        start_time = time.localtime()
         shutil.copyfile(src, dst)
-        queue.put(CopySuccess(src,dst))
+        end_time = time.localtime()
+        queue.put(CopySuccess(src,dst,start_time,end_time))
     except Exception as e:
-        queue.put(CopyFailure(src,dst,e))
+        end_time = time.localtime()
+        queue.put(CopyFailure(src,dst,start_time,end_time,e))
 
 class FileCopier(object):
 
@@ -180,9 +222,10 @@ class FileCopier(object):
         self.copied_files = FileCopyHistoryStore()
                 
     def _copy_file(self,src,dst):
-        _logger.info('Queuing copy from %s to %s',src,dst)
+        _logger.debug('Queuing copy from %s to %s',src,dst)
         self.copy_processes_active += 1
         self.pool.apply_async(copy_file_task, (src, dst, self.queue))
+#        copy_file_task(src,dst,self.queue)
         self._record_that_file_has_been_copied(src)
   
     def _find_copy_spec(self,source_path):
@@ -222,6 +265,7 @@ class FileCopier(object):
         while not self.queue.empty():
             result = self.queue.get()
             self.copy_processes_active -= 1
+            result.log(_logger)
             if self.file_copied_callback is not None:
                 self.file_copied_callback(result)
                 
