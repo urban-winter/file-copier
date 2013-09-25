@@ -22,7 +22,7 @@ File is identified by name and arrival date/time. - done
  - add test for persistence - done
 - log start time, end time for each copy - done
 - log duration - done
-- log size of each copy
+- log size of each copy - done
 - restructure source
 - setup.py
 - make logging consistent - make important stuff INFO

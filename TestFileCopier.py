@@ -121,7 +121,7 @@ class TestCopy(unittest.TestCase):
 #        self.assertEqual(self.mock_callback_called_with_status, CopySuccess(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),None,None))
         self.assertTrue(self._copy_status_equal(
                                                 self.mock_callback_called_with_status, 
-                                                CopySuccess(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),None,None)))
+                                                CopySuccess(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),None,None,None)))
 
     def test_file_copy_complete_callback_not_called_if_file_not_copied(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
@@ -147,7 +147,7 @@ class TestCopy(unittest.TestCase):
         copier.flush()
         
         self.assertTrue(self._copy_status_equal(self.mock_callback_called_with_status, 
-                                                CopyFailure(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),None,None,e)))
+                                                CopyFailure(src_path,os.path.join(self.dest_dir,self.TEST_FILE_NAME),None,None,None,e)))
         
     def test_file_copy_complete_callback_called_if_destination_is_read_only(self):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
@@ -164,6 +164,7 @@ class TestCopy(unittest.TestCase):
                                                  CopyFailure(src_path,os.path.join(
                                                                                    self.dest_dir,
                                                                                    self.TEST_FILE_NAME),
+                                                             None,
                                                              None,
                                                              None,
                                                              IOError(13, 'Permission denied'))))

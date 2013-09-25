@@ -29,11 +29,12 @@ COPY_POOL_SIZE = 10
 
 class CopyStatus(object):
 
-    def __init__(self,source,destination,start_time,end_time):
+    def __init__(self,source,destination,start_time,end_time,file_size):
         self.source = source
         self.destination = destination
         self.start_time = start_time
         self.end_time = end_time
+        self.file_size = file_size
         
     def __eq__(self, other): 
         # TODO: Comparison (only used for testing) does not work for the CopyFailure sub-class because
@@ -48,12 +49,13 @@ class CopyStatus(object):
     
     def _log_details(self):
         fmt = '%d %b %Y %H:%M:%S'
-        return 'Source: %s Destination: %s Start: %s End: %s Duration: %s ' % (
+        return 'Source: %s Destination: %s Start: %s End: %s Duration: %s Size: %s ' % (
                     self.source, 
                     self.destination, 
                     time.strftime(fmt,self.start_time), 
                     time.strftime(fmt,self.end_time),
-                    time.mktime(self.end_time) - time.mktime(self.start_time))
+                    time.mktime(self.end_time) - time.mktime(self.start_time),
+                    self.file_size)
     
     def _log_pre(self):
         assert(False) # should be overriden in subclass
@@ -80,8 +82,8 @@ class CopySuccess(CopyStatus):
     
 class CopyFailure(CopyStatus):
     
-    def __init__(self,source,destination,start_time,end_time,exception):
-        super(CopyFailure,self).__init__(source,destination,start_time,end_time)
+    def __init__(self,source,destination,start_time,end_time,file_size,exception):
+        super(CopyFailure,self).__init__(source,destination,start_time,end_time,file_size)
         self.exception = exception
 
     def _log_pre(self):
@@ -91,7 +93,7 @@ class CopyFailure(CopyStatus):
         return logging.ERROR
     
     def _log_post(self):
-        return str(self.exception)
+        return 'Exception: ' + str(self.exception)
         
 class CopyRules(object):
     def __init__(self,src_path,dst_path,is_history_path=False):
@@ -201,10 +203,10 @@ def copy_file_task(src,dst,queue):
         start_time = time.localtime()
         shutil.copyfile(src, dst)
         end_time = time.localtime()
-        queue.put(CopySuccess(src,dst,start_time,end_time))
+        queue.put(CopySuccess(src,dst,start_time,end_time,os.path.getsize(src)))
     except Exception as e:
         end_time = time.localtime()
-        queue.put(CopyFailure(src,dst,start_time,end_time,e))
+        queue.put(CopyFailure(src,dst,start_time,end_time,os.path.getsize(src),e))
 
 class FileCopier(object):
 
