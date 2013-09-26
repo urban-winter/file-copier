@@ -7,7 +7,7 @@ import unittest
 import tempfile
 import shutil
 import os
-from FileCopier import FileCopier, CopySuccess, CopyFailure, MIN_AGE_TO_COPY, Destination, CopyRules, MAX_AGE_TO_COPY
+from FileCopier import FileCopier, CopySuccess, CopyFailure, MIN_AGE_TO_COPY, Destination, MAX_AGE_TO_COPY
 import logging
 from datetime import date
 
@@ -244,34 +244,19 @@ class TestCopy(unittest.TestCase):
         copier.poll()
         copier.flush()
         self.assertEqual(len(os.listdir(self.dest_dir)), 1)
-        self.assertEqual(os.listdir(self.dest_dir)[0], self.TEST_FILE_NAME)   
-
-    @patch('os.path.exists')    
-    def test_file_not_copied_if_it_exists(self,mock_exists):
-        os.path.exists.return_value = True
-        self.assertFalse(CopyRules('dummy', 'a_file.txt').file_should_be_copied())
-        os.path.exists.assert_called_once_with('a_file.txt')
+        self.assertEqual(os.listdir(self.dest_dir)[0], self.TEST_FILE_NAME) 
         
-    @patch('os.path.exists')    
-    @patch('os.path.getmtime')
-    @patch('time.time')
     def test_file_not_copied_if_it_is_too_old(self,*args):
-        os.path.exists.return_value = False
-        os.path.getmtime.return_value = time.mktime(time.strptime('2012-02-14 01:00:00','%Y-%m-%d %H:%M:%S'))
-        time.time.return_value = time.mktime(time.strptime('2012-02-14 13:00:00','%Y-%m-%d %H:%M:%S'))
-        print os.path.getmtime
-        self.assertFalse(CopyRules('a_file.txt', 'dummy').file_should_be_copied())
-
-    @patch('os.path.exists')    
-    @patch('os.path.getmtime')
-    @patch('time.time')
-    def test_file_is_copied_if_it_is_not_too_old(self,*args):
-        os.path.exists.return_value = False
-        os.path.getmtime.return_value = time.mktime(time.strptime('2012-02-14 01:00:00','%Y-%m-%d %H:%M:%S'))
-        time.time.return_value = time.mktime(time.strptime('2012-02-14 12:59:59','%Y-%m-%d %H:%M:%S'))
-        print os.path.getmtime
-        self.assertTrue(CopyRules('a_file.txt', 'dummy').file_should_be_copied())
-                
+        src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
+        spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
+        self._make_aged_empty_file(src_path, time.time() - MAX_AGE_TO_COPY - 1)
+        
+        copier = FileCopier(spec)
+        copier.poll()
+        copier.flush()
+        
+        self.assertEqual(len(os.listdir(self.dest_dir)), 0)
+  
 class TestDestinationPathDerivation(unittest.TestCase):
     
     def _test_one_example(self,source,target,actual_file,expected_target,is_history_location):  

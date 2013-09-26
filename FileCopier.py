@@ -25,31 +25,6 @@ HISTORY_FILE_AGE_THRESHOLD = 12 * HOURS
 
 COPY_POOL_SIZE = 10
         
-class CopyRules(object):
-    def __init__(self,src_path,dst_path,is_history_path=False):
-        self.src_path = src_path
-        self.dst_path = dst_path
-        self.is_history_path = is_history_path
-        
-    def file_should_be_copied(self):
-        print 'file_should_be_copied called'
-        return (
-                self._dest_file_does_not_exist(self.dst_path) and 
-                self._src_file_is_not_too_old(self.src_path)
-                )
-        
-    def _dest_file_does_not_exist(self,path):
-        retval = not os.path.exists(path)
-        print '_dest_file_does_not_exist ', retval
-        return retval
-    
-    def _src_file_is_not_too_old(self,path):
-        file_modified_time = os.path.getmtime(path)
-        time_now = time.time()
-        retval = file_modified_time > (time_now - MAX_AGE_TO_COPY)
-        print '_src_file_is_not_too_old ', retval
-        return retval
-    
 class Destination(object):
     
     def __init__(self,source_spec,source_path,dest_spec,dest_is_history_path):
@@ -59,11 +34,6 @@ class Destination(object):
         self.dest_is_history_path = dest_is_history_path
         self.path = self._path()
         
-    def file_should_be_copied(self):
-#        print 'self.destspec: %s,self.path: %s' % (self.dest_spec,self.path)
-        rules = CopyRules(self.source_path,self.path,self.dest_is_history_path)
-        return rules.file_should_be_copied()
-
     def _path(self):
         path = self._path_after_wildcard_substitution()
         if self.dest_is_history_path:
@@ -154,10 +124,11 @@ class FileCopier(object):
         self.copied_files = FileCopyHistoryStore()
                 
     def _copy_file(self,src,dst):
-        _logger.debug('Queuing copy from %s to %s',src,dst)
-        self.copy_processes_active += 1
-        self.pool.apply_async(copy_file_task, (src, dst, self.queue))
-#        copy_file_task(src,dst,self.queue)
+        if not os.path.exists(dst):
+            _logger.debug('Queuing copy from %s to %s',src,dst)
+            self.copy_processes_active += 1
+            self.pool.apply_async(copy_file_task, (src, dst, self.queue))
+#            copy_file_task(src,dst,self.queue)
   
     def _find_copy_spec(self,source_path):
         for source_spec in self.file_copy_spec:
@@ -169,8 +140,7 @@ class FileCopier(object):
         if dest_path is not None:
             _logger.debug('Processing destination path: %s for source file: %s', dest_path, source_path)
             destination = Destination(source_spec,source_path,dest_path,dest_is_history_path)
-            if destination.file_should_be_copied():
-                self._copy_file(source_path,destination.path)
+            self._copy_file(source_path,destination.path)
         
     def _file_has_already_been_copied(self,path):
         return self.copied_files.contains(path,os.path.getmtime(path))
