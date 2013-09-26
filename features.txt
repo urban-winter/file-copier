@@ -23,9 +23,10 @@ File is identified by name and arrival date/time. - done
 - log start time, end time for each copy - done
 - log duration - done
 - log size of each copy - done
+- If files are too old then do not consider them in future
+- housekeep the history store
 - restructure source
 - setup.py
-- make logging consistent - make important stuff INFO
 - implement as service
 - deployment
 - better data structure for the file copy spec

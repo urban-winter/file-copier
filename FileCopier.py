@@ -35,8 +35,7 @@ class CopyRules(object):
         print 'file_should_be_copied called'
         return (
                 self._dest_file_does_not_exist(self.dst_path) and 
-                self._src_file_is_not_too_old(self.src_path) and 
-                self._src_file_is_not_too_young(self.src_path)
+                self._src_file_is_not_too_old(self.src_path)
                 )
         
     def _dest_file_does_not_exist(self,path):
@@ -49,13 +48,6 @@ class CopyRules(object):
         time_now = time.time()
         retval = file_modified_time > (time_now - MAX_AGE_TO_COPY)
         print '_src_file_is_not_too_old ', retval
-        return retval
-    
-    def _src_file_is_not_too_young(self,path):
-        file_modified_time = os.path.getmtime(path)
-        time_now = time.time()
-        retval = file_modified_time < (time_now - MIN_AGE_TO_COPY)
-        print '_src_file_is_not_too_young', file_modified_time < (time_now - MIN_AGE_TO_COPY)
         return retval
     
 class Destination(object):
@@ -166,7 +158,6 @@ class FileCopier(object):
         self.copy_processes_active += 1
         self.pool.apply_async(copy_file_task, (src, dst, self.queue))
 #        copy_file_task(src,dst,self.queue)
-        self._record_that_file_has_been_copied(src)
   
     def _find_copy_spec(self,source_path):
         for source_spec in self.file_copy_spec:
@@ -184,6 +175,13 @@ class FileCopier(object):
     def _file_has_already_been_copied(self,path):
         return self.copied_files.contains(path,os.path.getmtime(path))
     
+    def _file_is_not_too_old(self,path):
+        file_modified_time = os.path.getmtime(path)
+        time_now = time.time()
+        retval = file_modified_time > (time_now - MAX_AGE_TO_COPY)
+#        print '_src_file_is_not_too_old ', retval
+        return retval
+
     def _record_that_file_has_been_copied(self, path):
         file_ctime = os.path.getmtime(path)
         self.copied_files.add(path,file_ctime)
@@ -193,6 +191,7 @@ class FileCopier(object):
             for idx, dest_path in enumerate(copy_spec):
                 dest_is_history_path = idx == 1
                 self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path)
+            self._record_that_file_has_been_copied(source_path)
                 
     def _check_copy_status(self):
         '''
@@ -225,6 +224,7 @@ class FileCopier(object):
         for destination in self.file_copy_spec:
             matching_files = glob.glob(destination)
             for path in matching_files:
-                self._process_all_destinations(path,destination,self.file_copy_spec[destination])
+                if self._file_is_not_too_old(path):
+                    self._process_all_destinations(path,destination,self.file_copy_spec[destination])
         self._check_copy_status()
         
