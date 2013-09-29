@@ -152,6 +152,12 @@ class FileCopier(object):
 #        print '_src_file_is_not_too_old ', retval
         return retval
 
+    def _file_is_not_too_young(self,path):
+        file_modified_time = os.path.getmtime(path)
+        time_now = time.time()
+        retval = file_modified_time < (time_now - MIN_AGE_TO_COPY)
+        return retval
+
     def _record_that_file_has_been_copied(self, path):
         file_ctime = os.path.getmtime(path)
         self.copied_files.add(path,file_ctime)
@@ -194,7 +200,7 @@ class FileCopier(object):
         for destination in self.file_copy_spec:
             matching_files = glob.glob(destination)
             for path in matching_files:
-                if self._file_is_not_too_old(path):
+                if self._file_is_not_too_old(path) and self._file_is_not_too_young(path):
                     self._process_all_destinations(path,destination,self.file_copy_spec[destination])
         self._check_copy_status()
         

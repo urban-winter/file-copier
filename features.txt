@@ -24,7 +24,9 @@ File is identified by name and arrival date/time. - done
 - log duration - done
 - log size of each copy - done
 - If files are too old then do not consider them - done
+- do not copy if file modification time is within the last 60s (to allow for files that take a while to arrive) - done
 - housekeep the history store
+- check file sizes to verify successful copy
 - restructure source
 - setup.py
 - implement as service

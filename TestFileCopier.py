@@ -256,6 +256,18 @@ class TestCopy(unittest.TestCase):
         copier.flush()
         
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
+        
+    def test_file_not_copied_if_it_is_too_young(self,*args):
+        src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
+        spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
+        self._make_aged_empty_file(src_path, time.time() - MIN_AGE_TO_COPY + 1)
+        
+        copier = FileCopier(spec)
+        copier.poll()
+        copier.flush()
+        
+        self.assertEqual(len(os.listdir(self.dest_dir)), 0)
+
   
 class TestDestinationPathDerivation(unittest.TestCase):
     
