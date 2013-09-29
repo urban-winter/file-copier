@@ -11,7 +11,7 @@ from FileCopier import FileCopier, CopySuccess, CopyFailure, MIN_AGE_TO_COPY, De
 import logging
 from datetime import date
 
-from mock import patch, call
+from mock import patch
 import time
 import stat
 
@@ -98,6 +98,22 @@ class TestCopy(unittest.TestCase):
         copier.flush()
         self.assertEqual(set(os.listdir(self.dest_dir)), set(['chips.txt']))
         
+    def test_single_char_wildcard_in_source(self):
+        src_path1 = os.path.join(self.source_dir,'s?us?ge.txt')
+        dst_path1 = os.path.join(self.dest_dir,'chips.txt')
+        spec = {src_path1:[dst_path1]}
+        self._make_empty_file(os.path.join(self.source_dir,'sausage.txt'))
+        copier = FileCopier(spec)
+        copier.poll()
+        copier.flush()
+        self.assertEqual(set(os.listdir(self.dest_dir)), set(['chips.txt']))
+
+#    def test_single_char_wildcard_in_dest_is_invalid(self):
+#        src_path1 = os.path.join(self.source_dir,'sausa*.txt')
+#        dst_path1 = os.path.join(self.dest_dir,'chi?s.txt')
+#        spec = {src_path1:[dst_path1]}
+#        self.assertRaises(ValueError, FileCopier, spec)
+  
     def _mock_callback(self,status):
         self.mock_callback_called_with_status = status
 
@@ -260,15 +276,14 @@ class TestCopy(unittest.TestCase):
     def test_file_not_copied_if_it_is_too_young(self,*args):
         src_path = os.path.join(self.source_dir,self.TEST_FILE_NAME)
         spec = {src_path:[os.path.join(self.dest_dir,self.TEST_FILE_NAME)]}
-        self._make_aged_empty_file(src_path, time.time() - MIN_AGE_TO_COPY + 1)
+        self._make_aged_empty_file(src_path, time.time() - MIN_AGE_TO_COPY + 2)
         
         copier = FileCopier(spec)
         copier.poll()
         copier.flush()
         
         self.assertEqual(len(os.listdir(self.dest_dir)), 0)
-
-  
+        
 class TestDestinationPathDerivation(unittest.TestCase):
     
     def _test_one_example(self,source,target,actual_file,expected_target,is_history_location):  
