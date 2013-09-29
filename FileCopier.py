@@ -166,14 +166,12 @@ class FileCopier(object):
         return self.copied_files.contains(aFile.path,aFile.mtime())
     
     def _file_is_not_too_old(self,aFile):
-        time_now = time.time()
-        retval = aFile.mtime() > (time_now - MAX_AGE_TO_COPY)
+        retval = aFile.mtime() > (time.time() - MAX_AGE_TO_COPY)
 #        print '_src_file_is_not_too_old ', retval
         return retval
 
     def _file_is_not_too_young(self,aFile):
-        time_now = time.time()
-        retval = aFile.mtime() < (time_now - MIN_AGE_TO_COPY)
+        retval = aFile.mtime() < (time.time() - MIN_AGE_TO_COPY)
         return retval
 
     def _record_that_file_has_been_copied(self, aFile):
