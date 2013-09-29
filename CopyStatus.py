@@ -18,10 +18,7 @@ class CopyStatus(object):
             print '__eq__ %s: %s' % (element, self.__dict__[element] == other.__dict__[element])
         return self.__dict__ == other.__dict__
     
-    def __str__(self):
-        return str(self.__dict__)
-    
-    def _log_details(self):
+    def _str_details(self):
         fmt = '%d %b %Y %H:%M:%S'
         return 'Source: %s Destination: %s Start: %s End: %s Duration: %s Size: %s ' % (
                     self.source, 
@@ -31,24 +28,24 @@ class CopyStatus(object):
                     time.mktime(self.end_time) - time.mktime(self.start_time),
                     self.file_size)
     
-    def _log_pre(self):
-        assert(False) # should be overriden in subclass
+    def _str_pre(self):
+        return 'Should be overridden in sub-class'
         
-    def _log_post(self):
+    def _str_post(self):
         return ''
         
     def _log_class(self):
         assert(False) # should be overriden in subclass
         
-    def _log_msg(self):
-        return self._log_pre() + self._log_details() + self._log_post() 
+    def __str__(self):
+        return self._str_pre() + self._str_details() + self._str_post() 
     
     def log(self,logger):
-        logger.log(self._log_class(),self._log_msg())
+        logger.log(self._log_class(),self.__str__())
         
 class CopySuccess(CopyStatus):
     
-    def _log_pre(self):
+    def _str_pre(self):
         return 'File copied. '
     
     def _log_class(self):
@@ -60,11 +57,11 @@ class CopyFailure(CopyStatus):
         super(CopyFailure,self).__init__(source,destination,start_time,end_time,file_size)
         self.exception = exception
 
-    def _log_pre(self):
+    def _str_pre(self):
         return 'File copy failed. '
     
     def _log_class(self):
         return logging.ERROR
     
-    def _log_post(self):
+    def _str_post(self):
         return 'Exception: ' + str(self.exception)
