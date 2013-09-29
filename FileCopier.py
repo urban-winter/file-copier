@@ -24,7 +24,27 @@ MIN_AGE_TO_COPY = 60 * SECONDS
 HISTORY_FILE_AGE_THRESHOLD = 12 * HOURS
 
 COPY_POOL_SIZE = 10
+
+class File(object):
+    
+    def __init__(self, path):
+        self.path = path
         
+    def size(self):
+        return os.path.getsize(self.path)
+    
+    def mtime(self):
+        return os.path.getmtime(self.path)
+    
+    def exists(self):
+        return os.path.exists(self.path)
+    
+    def __str__(self):
+        return self.path
+    
+    def __eq__(self, other): 
+        return self.__dict__ == other.__dict__
+    
 class Destination(object):
     
     def __init__(self,source_spec,source_path,dest_spec,dest_is_history_path):
@@ -90,21 +110,21 @@ class Destination(object):
             os.mkdir(dated_path)
         return os.path.join(dirname,dated_subdir,fname)
 
-def copy_file_task(src,dst,queue):
+def copy_file_task(src_file,dst_file,queue):
     '''
-    Copy a file from src to dst and place a CopyStatus object on the queue when complete.
+    Copy a file from src_file to dst_file and place a CopyStatus object on the queue when complete.
     
     This function supports copying in a separate process. It cannot be an instance method because
     multiprocessing does not allow instance methods to be run in a separate process.
     '''
     try:
         start_time = time.localtime()
-        shutil.copyfile(src, dst)
+        shutil.copyfile(src_file.path, dst_file.path)
         end_time = time.localtime()
-        queue.put(CopySuccess(src,dst,start_time,end_time,os.path.getsize(src)))
+        queue.put(CopySuccess(src_file.path,dst_file.path,start_time,end_time,src_file.size()))
     except Exception as e:
         end_time = time.localtime()
-        queue.put(CopyFailure(src,dst,start_time,end_time,os.path.getsize(src),e))
+        queue.put(CopyFailure(src_file.path,dst_file.path,start_time,end_time,src_file.size(),e))
 
 class FileCopier(object):
 
@@ -124,7 +144,7 @@ class FileCopier(object):
         self.copied_files = FileCopyHistoryStore()
                 
     def _copy_file(self,src,dst):
-        if not os.path.exists(dst):
+        if not dst.exists():
             _logger.debug('Queuing copy from %s to %s',src,dst)
             self.copy_processes_active += 1
             self.pool.apply_async(copy_file_task, (src, dst, self.queue))
@@ -136,38 +156,35 @@ class FileCopier(object):
                 return self.file_copy_spec[source_spec], source_spec
         return None, None
     
-    def _process_one_destination(self,dest_path,source_path,source_spec,dest_is_history_path):
+    def _process_one_destination(self,dest_path,source_file,source_spec,dest_is_history_path):
         if dest_path is not None:
-            _logger.debug('Processing destination path: %s for source file: %s', dest_path, source_path)
-            destination = Destination(source_spec,source_path,dest_path,dest_is_history_path)
-            self._copy_file(source_path,destination.path)
+            _logger.debug('Processing destination path: %s for source file: %s', dest_path, source_file)
+            destination = Destination(source_spec,source_file.path,dest_path,dest_is_history_path)
+            self._copy_file(source_file,File(destination.path))
         
-    def _file_has_already_been_copied(self,path):
-        return self.copied_files.contains(path,os.path.getmtime(path))
+    def _file_has_already_been_copied(self,aFile):
+        return self.copied_files.contains(aFile.path,aFile.mtime())
     
-    def _file_is_not_too_old(self,path):
-        file_modified_time = os.path.getmtime(path)
+    def _file_is_not_too_old(self,aFile):
         time_now = time.time()
-        retval = file_modified_time > (time_now - MAX_AGE_TO_COPY)
+        retval = aFile.mtime() > (time_now - MAX_AGE_TO_COPY)
 #        print '_src_file_is_not_too_old ', retval
         return retval
 
-    def _file_is_not_too_young(self,path):
-        file_modified_time = os.path.getmtime(path)
+    def _file_is_not_too_young(self,aFile):
         time_now = time.time()
-        retval = file_modified_time < (time_now - MIN_AGE_TO_COPY)
+        retval = aFile.mtime() < (time_now - MIN_AGE_TO_COPY)
         return retval
 
-    def _record_that_file_has_been_copied(self, path):
-        file_ctime = os.path.getmtime(path)
-        self.copied_files.add(path,file_ctime)
+    def _record_that_file_has_been_copied(self, aFile):
+        self.copied_files.add(aFile.path,aFile.mtime())
 
-    def _process_all_destinations(self,source_path,source_spec,copy_spec):
-        if not self._file_has_already_been_copied(source_path):
+    def _process_all_destinations(self,source_file,source_spec,copy_spec):
+        if not self._file_has_already_been_copied(source_file):
             for idx, dest_path in enumerate(copy_spec):
                 dest_is_history_path = idx == 1
-                self._process_one_destination(dest_path,source_path,source_spec,dest_is_history_path)
-            self._record_that_file_has_been_copied(source_path)
+                self._process_one_destination(dest_path,source_file,source_spec,dest_is_history_path)
+            self._record_that_file_has_been_copied(source_file)
                 
     def _check_copy_status(self):
         '''
@@ -199,8 +216,8 @@ class FileCopier(object):
         _logger.debug('FileCopier.poll() called')
         for destination in self.file_copy_spec:
             matching_files = glob.glob(destination)
-            for path in matching_files:
-                if self._file_is_not_too_old(path) and self._file_is_not_too_young(path):
-                    self._process_all_destinations(path,destination,self.file_copy_spec[destination])
+            for aFile in map(File,matching_files):
+                if self._file_is_not_too_old(aFile) and self._file_is_not_too_young(aFile):
+                    self._process_all_destinations(aFile,destination,self.file_copy_spec[destination])
         self._check_copy_status()
         
